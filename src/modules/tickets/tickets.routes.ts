@@ -2,13 +2,17 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { actorOf, bearerSecurity, type AuthGuards } from '../../http/auth-guard.js';
 import { pageOf, toPageResponse } from '../../http/pagination.js';
 import { problemResponses } from '../../http/problem.js';
+import { z } from 'zod';
 import {
+  activitySchema,
   createTicketBodySchema,
   listTicketsQuerySchema,
   parseSort,
   ticketIdParamsSchema,
   ticketSchema,
+  toActivityDto,
   toTicketDto,
+  transitionBodySchema,
   updateTicketBodySchema,
 } from './tickets.schemas.js';
 import type { TicketsService } from './tickets.service.js';
@@ -99,6 +103,44 @@ export function ticketsRoutes(tickets: TicketsService, guards: AuthGuards): Fast
       },
       async (request) =>
         toTicketDto(await tickets.update(actorOf(request), request.params.id, request.body)),
+    );
+
+    app.post(
+      '/tickets/:id/transitions',
+      {
+        onRequest: guards.authenticate,
+        schema: {
+          tags: ['tickets'],
+          summary: 'Move a ticket through its lifecycle',
+          description:
+            'Illegal moves (e.g. open -> closed) return 409. Legal moves the caller may not ' +
+            'perform return 403. Requesters may reopen or close their resolved tickets.',
+          security: bearerSecurity,
+          params: ticketIdParamsSchema,
+          body: transitionBodySchema,
+          response: { 200: ticketSchema, ...problemResponses(400, 401, 403, 404, 409) },
+        },
+      },
+      async (request) =>
+        toTicketDto(
+          await tickets.transition(actorOf(request), request.params.id, request.body.status),
+        ),
+    );
+
+    app.get(
+      '/tickets/:id/activity',
+      {
+        onRequest: guards.requireRole('agent', 'admin'),
+        schema: {
+          tags: ['tickets'],
+          summary: 'Audit trail of a ticket (staff)',
+          security: bearerSecurity,
+          params: ticketIdParamsSchema,
+          response: { 200: z.array(activitySchema), ...problemResponses(400, 401, 403, 404) },
+        },
+      },
+      async (request) =>
+        (await tickets.activity(actorOf(request), request.params.id)).map(toActivityDto),
     );
   };
 }

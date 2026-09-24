@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import type { ActivityRow } from '../../db/schema.js';
 import { paginationQuerySchema } from '../../http/pagination.js';
 import type { SlaTargetStatus } from '../sla/domain/sla-calculator.js';
+import { ACTIVITY_TYPES } from './domain/activity.js';
 import { TICKET_CATEGORIES, TICKET_PRIORITIES, TICKET_STATUSES } from './domain/ticket.js';
 import { TICKET_SORT_FIELDS, type TicketSort } from './tickets.repository.js';
 import type { TicketView } from './tickets.service.js';
@@ -58,6 +60,28 @@ export const createTicketBodySchema = z.object({
 export const updateTicketBodySchema = createTicketBodySchema
   .partial()
   .refine((body) => Object.keys(body).length > 0, 'At least one field must be provided');
+
+export const transitionBodySchema = z.object({
+  status: z.enum(TICKET_STATUSES).describe('Target status'),
+});
+
+export const activitySchema = z.object({
+  id: z.uuid(),
+  type: z.enum(ACTIVITY_TYPES),
+  actorId: z.uuid().nullable().describe('Null when the system acted'),
+  data: z.record(z.string(), z.unknown()),
+  createdAt: z.iso.datetime(),
+});
+
+export function toActivityDto(activity: ActivityRow): z.infer<typeof activitySchema> {
+  return {
+    id: activity.id,
+    type: activity.type,
+    actorId: activity.actorId,
+    data: activity.data,
+    createdAt: activity.createdAt.toISOString(),
+  };
+}
 
 const slaTargetSchema = z.object({
   dueAt: z.iso.datetime(),

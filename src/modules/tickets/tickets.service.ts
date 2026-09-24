@@ -1,9 +1,13 @@
-import type { TicketRow } from '../../db/schema.js';
+import type { ActivityRow, TicketRow } from '../../db/schema.js';
 import type { Repositories, UnitOfWork } from '../../db/unit-of-work.js';
 import type { Actor } from '../../shared/actor.js';
 import type { Clock } from '../../shared/clock.js';
-import type { DomainEventBus } from '../../shared/events/domain-events.js';
-import { ForbiddenError, NotFoundError } from '../../shared/errors.js';
+import {
+  publishAll,
+  type DomainEvent,
+  type DomainEventBus,
+} from '../../shared/events/domain-events.js';
+import { ConflictError, ForbiddenError, NotFoundError } from '../../shared/errors.js';
 import type { Page, PageRequest } from '../../shared/pagination.js';
 import {
   evaluateSla,
@@ -15,7 +19,8 @@ import type { SlaPolicy } from '../sla/domain/sla-policy.js';
 import { isStaff } from '../users/domain/role.js';
 import type { TicketCategory, TicketPriority, TicketStatus } from './domain/ticket.js';
 import { canViewTicket, transitionActorFor } from './domain/ticket-access.js';
-import { availableTransitions } from './domain/ticket-state-machine.js';
+import { transitionEffects } from './domain/ticket-lifecycle.js';
+import { availableTransitions, checkTransition } from './domain/ticket-state-machine.js';
 import type { TicketFilter, TicketPatch, TicketSort } from './tickets.repository.js';
 
 export interface TicketView {
@@ -125,6 +130,82 @@ export class TicketsService {
       return updated;
     });
     return this.view(actor, ticket);
+  }
+
+  async transition(actor: Actor, id: string, to: TicketStatus): Promise<TicketView> {
+    const { ticket, events } = await this.uow.transaction(async (repos) => {
+      const current = await this.lockVisible(repos, actor, id);
+      return this.applyTransition(repos, actor, current, to);
+    });
+    await publishAll(this.events, events);
+    return this.view(actor, ticket);
+  }
+
+  /**
+   * Validates a status change against the state machine and applies it
+   * inside the caller's transaction. Returns the events to publish once the
+   * transaction has committed.
+   */
+  async applyTransition(
+    repos: Repositories,
+    actor: Actor,
+    ticket: TicketRow,
+    to: TicketStatus,
+  ): Promise<{ ticket: TicketRow; events: DomainEvent[] }> {
+    const transitionActor = transitionActorFor(actor, ticket);
+    const check = transitionActor
+      ? checkTransition(ticket.status, to, transitionActor)
+      : ({ allowed: false, reason: 'actor_not_permitted' } as const);
+
+    if (!check.allowed) {
+      if (check.reason === 'illegal_transition') {
+        throw new ConflictError(
+          `A ticket cannot move from ${ticket.status} to ${to}.`,
+          'invalid-transition',
+          'Invalid Status Transition',
+        );
+      }
+      throw new ForbiddenError(`You are not allowed to move this ticket to ${to}.`);
+    }
+
+    const now = this.clock.now();
+    const updated = await repos.tickets.update(ticket.id, {
+      ...transitionEffects(ticket, to, now, this.slaPolicy),
+      updatedAt: now,
+    });
+    await repos.activities.record({
+      ticketId: ticket.id,
+      actorId: actor.userId,
+      type: 'status_changed',
+      data: { from: ticket.status, to },
+      createdAt: now,
+    });
+
+    return {
+      ticket: updated,
+      events: [
+        {
+          name: 'ticket.status_changed',
+          payload: {
+            ticketId: ticket.id,
+            requesterId: ticket.requesterId,
+            assigneeId: ticket.assigneeId,
+            from: ticket.status,
+            to,
+            changedBy: actor.userId,
+            occurredAt: now,
+          },
+        },
+      ],
+    };
+  }
+
+  /** The audit trail of a ticket (staff only). */
+  async activity(actor: Actor, id: string): Promise<ActivityRow[]> {
+    if (!isStaff(actor.role)) throw new ForbiddenError();
+    const ticket = await this.uow.repositories.tickets.findById(id);
+    if (!ticket) throw new NotFoundError('Ticket', id);
+    return this.uow.repositories.activities.listForTicket(id);
   }
 
   view(actor: Actor, ticket: TicketRow): TicketView {
