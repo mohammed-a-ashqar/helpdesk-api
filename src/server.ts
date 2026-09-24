@@ -3,11 +3,13 @@ import { buildApp } from './app.js';
 import { loadConfig } from './config/env.js';
 import { createContainer } from './container.js';
 import { createPostgresDatabase } from './db/client.js';
+import { createLogger } from './logger.js';
 import { systemClock } from './shared/clock.js';
 
 const config = loadConfig();
 const database = createPostgresDatabase(config.databaseUrl);
-const container = createContainer({ config, db: database.db, clock: systemClock });
+const logger = createLogger(config);
+const container = createContainer({ config, db: database.db, clock: systemClock, logger });
 const app = await buildApp(config, container);
 
 let shuttingDown = false;

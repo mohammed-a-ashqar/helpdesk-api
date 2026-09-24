@@ -1,0 +1,1 @@
+ALTER TABLE "ticket_activities" ADD COLUMN "sequence" bigserial NOT NULL;

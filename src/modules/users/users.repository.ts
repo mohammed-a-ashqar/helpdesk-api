@@ -1,6 +1,7 @@
 import { and, asc, count, eq, ilike, inArray, or, type SQL } from 'drizzle-orm';
 import type { DbExecutor } from '../../db/client.js';
 import { isUniqueViolation } from '../../db/errors.js';
+import { escapeLike } from '../../db/sql.js';
 import { agentCategories, users, type UserRow } from '../../db/schema.js';
 import { offsetOf, type Page, type PageRequest } from '../../shared/pagination.js';
 import { ConflictError } from '../../shared/errors.js';
@@ -101,9 +102,4 @@ export class UsersRepository {
         .values([...new Set(categories)].map((category) => ({ userId, category })));
     }
   }
-}
-
-/** Escapes LIKE wildcards so user input is matched literally. */
-export function escapeLike(value: string): string {
-  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }

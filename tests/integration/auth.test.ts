@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { createTestApp, type TestApp } from '../support/test-app.js';
+import { createTestApp, testConfig, type TestApp } from '../support/test-app.js';
 
 interface AuthBody {
   user: { id: string; email: string; role: string };
@@ -48,7 +48,7 @@ describe('auth', () => {
       expect(body.user).toMatchObject({ email: 'jane@example.com', role: 'customer' });
       expect(body.user).not.toHaveProperty('passwordHash');
       expect(body.tokenType).toBe('Bearer');
-      expect(body.expiresIn).toBe(900);
+      expect(body.expiresIn).toBe(testConfig().auth.accessTokenTtlSeconds);
       await expect(t.container.tokens.verifyAccessToken(body.accessToken)).resolves.toEqual({
         userId: body.user.id,
         role: 'customer',

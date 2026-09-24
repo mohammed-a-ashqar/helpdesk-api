@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import type { SlaPolicy } from '../modules/sla/domain/sla-policy.js';
+import { defaultSlaPolicy } from './sla.js';
 
 const booleanFlag = z
   .enum(['true', 'false', '1', '0'])
@@ -37,6 +39,7 @@ export interface AppConfig {
   http: { corsOrigins: string[] };
   databaseUrl: string;
   auth: AuthConfig;
+  sla: SlaPolicy;
 }
 
 export interface AuthConfig {
@@ -76,5 +79,6 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       },
       argon2: { memoryCost: env.ARGON2_MEMORY_COST_KIB, timeCost: env.ARGON2_TIME_COST },
     },
+    sla: defaultSlaPolicy,
   };
 }

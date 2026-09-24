@@ -1,16 +1,22 @@
 import { RefreshTokenRepository } from '../modules/auth/refresh-token.repository.js';
+import { ActivitiesRepository } from '../modules/tickets/activities.repository.js';
+import { TicketsRepository } from '../modules/tickets/tickets.repository.js';
 import { UsersRepository } from '../modules/users/users.repository.js';
 import type { Database, DbExecutor } from './client.js';
 
 export interface Repositories {
   users: UsersRepository;
   refreshTokens: RefreshTokenRepository;
+  tickets: TicketsRepository;
+  activities: ActivitiesRepository;
 }
 
 function createRepositories(db: DbExecutor): Repositories {
   return {
     users: new UsersRepository(db),
     refreshTokens: new RefreshTokenRepository(db),
+    tickets: new TicketsRepository(db),
+    activities: new ActivitiesRepository(db),
   };
 }
 

@@ -19,7 +19,7 @@ export function usersRoutes(users: UsersService, guards: AuthGuards): FastifyPlu
     app.get(
       '/users/me',
       {
-        preHandler: guards.authenticate,
+        onRequest: guards.authenticate,
         schema: {
           tags: ['users'],
           summary: 'The authenticated user',
@@ -33,7 +33,7 @@ export function usersRoutes(users: UsersService, guards: AuthGuards): FastifyPlu
     app.get(
       '/users',
       {
-        preHandler: guards.requireRole('admin'),
+        onRequest: guards.requireRole('admin'),
         schema: {
           tags: ['users'],
           summary: 'List users (admin)',
@@ -52,7 +52,7 @@ export function usersRoutes(users: UsersService, guards: AuthGuards): FastifyPlu
     app.post(
       '/users',
       {
-        preHandler: guards.requireRole('admin'),
+        onRequest: guards.requireRole('admin'),
         schema: {
           tags: ['users'],
           summary: 'Create a user with any role (admin)',
@@ -67,7 +67,7 @@ export function usersRoutes(users: UsersService, guards: AuthGuards): FastifyPlu
     app.patch(
       '/users/:id',
       {
-        preHandler: guards.requireRole('admin'),
+        onRequest: guards.requireRole('admin'),
         schema: {
           tags: ['users'],
           summary: 'Update role, status, name or categories (admin)',

@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  bigserial,
   boolean,
   index,
   integer,
@@ -135,6 +136,8 @@ export const ticketActivities = pgTable(
   'ticket_activities',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    /** Monotonic insertion order; several entries can share a timestamp. */
+    sequence: bigserial('sequence', { mode: 'number' }).notNull(),
     ticketId: uuid('ticket_id')
       .notNull()
       .references(() => tickets.id, { onDelete: 'cascade' }),

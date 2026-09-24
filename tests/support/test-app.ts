@@ -1,7 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../../src/app.js';
 import type { AppConfig } from '../../src/config/env.js';
+import { defaultSlaPolicy } from '../../src/config/sla.js';
 import { createContainer, type Container } from '../../src/container.js';
+import { createLogger } from '../../src/logger.js';
 import { FakeClock } from './fake-clock.js';
 import { createTestDatabase, type TestDatabase } from './test-database.js';
 
@@ -14,12 +16,15 @@ export function testConfig(overrides: { authRateLimitMax?: number } = {}): AppCo
     databaseUrl: 'postgres://unused:unused@localhost:5432/unused',
     auth: {
       accessTokenSecret: 'integration-test-secret-with-more-than-32-chars',
-      accessTokenTtlSeconds: 900,
+      // Long-lived so tests that fast-forward the fake clock keep their sessions;
+      // expiry itself is covered by the token service unit tests.
+      accessTokenTtlSeconds: 30 * 24 * 3600,
       refreshTokenTtlSeconds: 14 * 24 * 3600,
       rateLimit: { max: overrides.authRateLimitMax ?? 1000, windowSeconds: 60 },
       // Cheap hashing keeps the suite fast; production uses the OWASP baseline.
       argon2: { memoryCost: 1024, timeCost: 1 },
     },
+    sla: defaultSlaPolicy,
   };
 }
 
@@ -41,7 +46,12 @@ export async function createTestApp(
   const config = testConfig(overrides);
   const database = await createTestDatabase();
   const clock = new FakeClock();
-  const container = createContainer({ config, db: database.db, clock });
+  const container = createContainer({
+    config,
+    db: database.db,
+    clock,
+    logger: createLogger(config),
+  });
   const app = await buildApp(config, container);
   await app.ready();
 

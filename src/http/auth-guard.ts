@@ -1,4 +1,4 @@
-import type { FastifyReply, FastifyRequest, preHandlerAsyncHookHandler } from 'fastify';
+import type { FastifyReply, FastifyRequest, onRequestAsyncHookHandler } from 'fastify';
 import type { TokenService } from '../modules/auth/token.service.js';
 import type { Role } from '../modules/users/domain/role.js';
 import type { UsersRepository } from '../modules/users/users.repository.js';
@@ -14,9 +14,9 @@ declare module 'fastify' {
 
 export interface AuthGuards {
   /** Requires a valid bearer token belonging to an active user. */
-  authenticate: preHandlerAsyncHookHandler;
+  authenticate: onRequestAsyncHookHandler;
   /** Requires authentication and one of the given roles. */
-  requireRole(...roles: Role[]): preHandlerAsyncHookHandler;
+  requireRole(...roles: Role[]): onRequestAsyncHookHandler;
 }
 
 export function createAuthGuards(tokens: TokenService, users: UsersRepository): AuthGuards {

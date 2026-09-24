@@ -14,6 +14,7 @@ import { registerOpenApi } from './http/openapi.js';
 import { registerSecurity } from './http/security.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { healthRoutes } from './modules/health/health.routes.js';
+import { ticketsRoutes } from './modules/tickets/tickets.routes.js';
 import { usersRoutes } from './modules/users/users.routes.js';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._-]{1,128}$/;
@@ -26,13 +27,7 @@ function requestId(request: IncomingMessage): string {
 
 export async function buildApp(config: AppConfig, container: Container): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: {
-      level: config.logLevel,
-      redact: ['req.headers.authorization', 'req.headers.cookie'],
-      ...(config.env === 'development'
-        ? { transport: { target: 'pino-pretty', options: { translateTime: 'SYS:HH:MM:ss' } } }
-        : {}),
-    },
+    loggerInstance: container.logger,
     genReqId: requestId,
     trustProxy: config.server.trustProxy,
   }).withTypeProvider<ZodTypeProvider>();
@@ -52,6 +47,7 @@ export async function buildApp(config: AppConfig, container: Container): Promise
   await app.register(healthRoutes(container.health));
   await app.register(authRoutes(container.auth, config.auth));
   await app.register(usersRoutes(container.users, container.guards));
+  await app.register(ticketsRoutes(container.tickets, container.guards));
 
   return app;
 }
