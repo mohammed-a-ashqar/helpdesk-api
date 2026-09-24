@@ -1,0 +1,32 @@
+import { RefreshTokenRepository } from '../modules/auth/refresh-token.repository.js';
+import { UsersRepository } from '../modules/users/users.repository.js';
+import type { Database, DbExecutor } from './client.js';
+
+export interface Repositories {
+  users: UsersRepository;
+  refreshTokens: RefreshTokenRepository;
+}
+
+function createRepositories(db: DbExecutor): Repositories {
+  return {
+    users: new UsersRepository(db),
+    refreshTokens: new RefreshTokenRepository(db),
+  };
+}
+
+/**
+ * Gives services repositories bound either to the connection pool or to a
+ * single transaction, so a use case can commit several writes atomically
+ * without repositories knowing about transactions.
+ */
+export class UnitOfWork {
+  readonly repositories: Repositories;
+
+  constructor(private readonly db: Database) {
+    this.repositories = createRepositories(db);
+  }
+
+  transaction<T>(work: (repositories: Repositories) => Promise<T>): Promise<T> {
+    return this.db.transaction((tx) => work(createRepositories(tx)));
+  }
+}

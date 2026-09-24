@@ -19,6 +19,13 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   CORS_ORIGINS: csv.default([]),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  JWT_ACCESS_SECRET: z.string().min(32, 'must be at least 32 characters'),
+  JWT_ACCESS_TTL_SECONDS: z.coerce.number().int().positive().default(900),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(14),
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
+  AUTH_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
+  ARGON2_MEMORY_COST_KIB: z.coerce.number().int().min(1024).default(19_456),
+  ARGON2_TIME_COST: z.coerce.number().int().min(1).default(2),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -29,6 +36,15 @@ export interface AppConfig {
   logLevel: Env['LOG_LEVEL'];
   http: { corsOrigins: string[] };
   databaseUrl: string;
+  auth: AuthConfig;
+}
+
+export interface AuthConfig {
+  accessTokenSecret: string;
+  accessTokenTtlSeconds: number;
+  refreshTokenTtlSeconds: number;
+  rateLimit: { max: number; windowSeconds: number };
+  argon2: { memoryCost: number; timeCost: number };
 }
 
 /**
@@ -50,5 +66,15 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     logLevel: env.LOG_LEVEL,
     http: { corsOrigins: env.CORS_ORIGINS },
     databaseUrl: env.DATABASE_URL,
+    auth: {
+      accessTokenSecret: env.JWT_ACCESS_SECRET,
+      accessTokenTtlSeconds: env.JWT_ACCESS_TTL_SECONDS,
+      refreshTokenTtlSeconds: env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60,
+      rateLimit: {
+        max: env.AUTH_RATE_LIMIT_MAX,
+        windowSeconds: env.AUTH_RATE_LIMIT_WINDOW_SECONDS,
+      },
+      argon2: { memoryCost: env.ARGON2_MEMORY_COST_KIB, timeCost: env.ARGON2_TIME_COST },
+    },
   };
 }

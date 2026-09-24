@@ -12,6 +12,7 @@ import type { Container } from './container.js';
 import { registerErrorHandling } from './http/error-handler.js';
 import { registerOpenApi } from './http/openapi.js';
 import { registerSecurity } from './http/security.js';
+import { authRoutes } from './modules/auth/auth.routes.js';
 import { healthRoutes } from './modules/health/health.routes.js';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._-]{1,128}$/;
@@ -47,6 +48,7 @@ export async function buildApp(config: AppConfig, container: Container): Promise
   await registerOpenApi(app, APP_VERSION);
 
   await app.register(healthRoutes(container.health));
+  await app.register(authRoutes(container.auth, config.auth));
 
   return app;
 }
