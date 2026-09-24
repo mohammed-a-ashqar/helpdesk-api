@@ -45,4 +45,11 @@ export class RefreshTokenRepository {
       .set({ revokedAt: at })
       .where(and(eq(refreshTokens.familyId, familyId), isNull(refreshTokens.revokedAt)));
   }
+
+  async revokeAllForUser(userId: string, at: Date): Promise<void> {
+    await this.db
+      .update(refreshTokens)
+      .set({ revokedAt: at })
+      .where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)));
+  }
 }

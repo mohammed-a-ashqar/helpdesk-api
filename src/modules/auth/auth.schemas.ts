@@ -17,7 +17,7 @@ export const refreshBodySchema = z.object({
 });
 
 export const authResponseSchema = z.object({
-  user: userSchema,
+  user: userSchema.omit({ categories: true }),
   tokenType: z.literal('Bearer'),
   accessToken: z.string(),
   expiresIn: z.number().int().describe('Access token lifetime in seconds'),

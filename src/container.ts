@@ -5,6 +5,8 @@ import { AuthService } from './modules/auth/auth.service.js';
 import { Argon2PasswordHasher } from './modules/auth/password-hasher.js';
 import { TokenService } from './modules/auth/token.service.js';
 import { HealthService } from './modules/health/health.service.js';
+import { UsersService } from './modules/users/users.service.js';
+import { createAuthGuards } from './http/auth-guard.js';
 import type { Clock } from './shared/clock.js';
 
 export interface ContainerOptions {
@@ -42,6 +44,8 @@ export function createContainer({ config, db, clock }: ContainerOptions) {
     passwordHasher,
     health: new HealthService(db),
     auth: new AuthService(uow, passwordHasher, tokens, clock),
+    guards: createAuthGuards(tokens, uow.repositories.users),
+    users: new UsersService(uow, passwordHasher, clock),
   };
 }
 

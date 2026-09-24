@@ -14,6 +14,7 @@ import { registerOpenApi } from './http/openapi.js';
 import { registerSecurity } from './http/security.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { healthRoutes } from './modules/health/health.routes.js';
+import { usersRoutes } from './modules/users/users.routes.js';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._-]{1,128}$/;
 
@@ -39,6 +40,7 @@ export async function buildApp(config: AppConfig, container: Container): Promise
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
+  app.decorateRequest('actor', null);
   app.addHook('onRequest', async (request, reply) => {
     reply.header('x-request-id', request.id);
   });
@@ -49,6 +51,7 @@ export async function buildApp(config: AppConfig, container: Container): Promise
 
   await app.register(healthRoutes(container.health));
   await app.register(authRoutes(container.auth, config.auth));
+  await app.register(usersRoutes(container.users, container.guards));
 
   return app;
 }
