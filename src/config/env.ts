@@ -5,6 +5,7 @@ const envSchema = z.object({
   HOST: z.string().min(1).default('0.0.0.0'),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+  DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -13,6 +14,7 @@ export interface AppConfig {
   env: Env['NODE_ENV'];
   server: { host: string; port: number };
   logLevel: Env['LOG_LEVEL'];
+  databaseUrl: string;
 }
 
 /**
@@ -32,5 +34,6 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     env: env.NODE_ENV,
     server: { host: env.HOST, port: env.PORT },
     logLevel: env.LOG_LEVEL,
+    databaseUrl: env.DATABASE_URL,
   };
 }
