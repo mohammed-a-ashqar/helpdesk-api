@@ -30,6 +30,11 @@ export default tseslint.config(
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
+    // Fastify route plugins are async by contract even when they only register routes.
+    files: ['src/**/*.routes.ts'],
+    rules: { '@typescript-eslint/require-await': 'off' },
+  },
+  {
     files: ['tests/**/*.ts'],
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
