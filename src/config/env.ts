@@ -28,6 +28,7 @@ const envSchema = z.object({
   AUTH_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
   ARGON2_MEMORY_COST_KIB: z.coerce.number().int().min(1024).default(19_456),
   ARGON2_TIME_COST: z.coerce.number().int().min(1).default(2),
+  AUTO_ASSIGN_ON_CREATE: booleanFlag.default(true),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -40,6 +41,7 @@ export interface AppConfig {
   databaseUrl: string;
   auth: AuthConfig;
   sla: SlaPolicy;
+  tickets: { autoAssignOnCreate: boolean };
 }
 
 export interface AuthConfig {
@@ -80,5 +82,6 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       argon2: { memoryCost: env.ARGON2_MEMORY_COST_KIB, timeCost: env.ARGON2_TIME_COST },
     },
     sla: defaultSlaPolicy,
+    tickets: { autoAssignOnCreate: env.AUTO_ASSIGN_ON_CREATE },
   };
 }

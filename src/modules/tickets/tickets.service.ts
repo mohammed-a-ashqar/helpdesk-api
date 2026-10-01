@@ -21,6 +21,7 @@ import type { TicketCategory, TicketPriority, TicketStatus } from './domain/tick
 import { canViewTicket, transitionActorFor } from './domain/ticket-access.js';
 import { transitionEffects } from './domain/ticket-lifecycle.js';
 import { availableTransitions, checkTransition } from './domain/ticket-state-machine.js';
+import type { TicketAssigner } from './assignment/ticket-assigner.js';
 import type { TicketFilter, TicketPatch, TicketSort } from './tickets.repository.js';
 
 export interface TicketView {
@@ -44,18 +45,29 @@ export interface UpdateTicketInput {
   priority?: TicketPriority | undefined;
 }
 
+export interface TicketsServiceOptions {
+  slaPolicy: SlaPolicy;
+  /** Run the assignment strategy as soon as a ticket is raised. */
+  autoAssignOnCreate: boolean;
+}
+
 export class TicketsService {
   constructor(
     private readonly uow: UnitOfWork,
     private readonly clock: Clock,
-    private readonly slaPolicy: SlaPolicy,
     private readonly events: DomainEventBus,
+    private readonly assigner: TicketAssigner,
+    private readonly options: TicketsServiceOptions,
   ) {}
+
+  private get slaPolicy(): SlaPolicy {
+    return this.options.slaPolicy;
+  }
 
   async create(actor: Actor, input: CreateTicketInput): Promise<TicketView> {
     const now = this.clock.now();
 
-    const ticket = await this.uow.transaction(async (repos) => {
+    const { ticket, events } = await this.uow.transaction(async (repos) => {
       const created = await repos.tickets.create({
         ...input,
         requesterId: actor.userId,
@@ -71,17 +83,27 @@ export class TicketsService {
         data: { category: created.category, priority: created.priority },
         createdAt: now,
       });
-      return created;
+      const createdEvent: DomainEvent = {
+        name: 'ticket.created',
+        payload: {
+          ticketId: created.id,
+          number: created.number,
+          requesterId: created.requesterId,
+          category: created.category,
+          priority: created.priority,
+          occurredAt: now,
+        },
+      };
+
+      if (!this.options.autoAssignOnCreate) {
+        return { ticket: created, events: [createdEvent] };
+      }
+      // Nobody eligible is fine here: the ticket simply waits in the queue.
+      const assignment = await this.assigner.autoAssign(repos, created, null);
+      return { ticket: assignment.ticket, events: [createdEvent, ...assignment.events] };
     });
 
-    await this.events.publish('ticket.created', {
-      ticketId: ticket.id,
-      number: ticket.number,
-      requesterId: ticket.requesterId,
-      category: ticket.category,
-      priority: ticket.priority,
-      occurredAt: now,
-    });
+    await publishAll(this.events, events);
     return this.view(actor, ticket);
   }
 

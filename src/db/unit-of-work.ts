@@ -1,5 +1,6 @@
 import { RefreshTokenRepository } from '../modules/auth/refresh-token.repository.js';
 import { ActivitiesRepository } from '../modules/tickets/activities.repository.js';
+import { WorkloadRepository } from '../modules/tickets/assignment/workload.repository.js';
 import { TicketsRepository } from '../modules/tickets/tickets.repository.js';
 import { UsersRepository } from '../modules/users/users.repository.js';
 import type { Database, DbExecutor } from './client.js';
@@ -9,6 +10,7 @@ export interface Repositories {
   refreshTokens: RefreshTokenRepository;
   tickets: TicketsRepository;
   activities: ActivitiesRepository;
+  workloads: WorkloadRepository;
 }
 
 function createRepositories(db: DbExecutor): Repositories {
@@ -17,6 +19,7 @@ function createRepositories(db: DbExecutor): Repositories {
     refreshTokens: new RefreshTokenRepository(db),
     tickets: new TicketsRepository(db),
     activities: new ActivitiesRepository(db),
+    workloads: new WorkloadRepository(db),
   };
 }
 

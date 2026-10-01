@@ -7,6 +7,9 @@ import { AuthService } from './modules/auth/auth.service.js';
 import { Argon2PasswordHasher } from './modules/auth/password-hasher.js';
 import { TokenService } from './modules/auth/token.service.js';
 import { HealthService } from './modules/health/health.service.js';
+import { AssignmentService } from './modules/tickets/assignment/assignment.service.js';
+import { LeastOpenTicketsStrategy } from './modules/tickets/assignment/least-open-tickets.strategy.js';
+import { TicketAssigner } from './modules/tickets/assignment/ticket-assigner.js';
 import { TicketsService } from './modules/tickets/tickets.service.js';
 import { UsersService } from './modules/users/users.service.js';
 import type { Clock } from './shared/clock.js';
@@ -45,6 +48,12 @@ export function createContainer({ config, db, clock, logger }: ContainerOptions)
     clock,
   );
 
+  const assigner = new TicketAssigner(new LeastOpenTicketsStrategy(), clock);
+  const tickets = new TicketsService(uow, clock, events, assigner, {
+    slaPolicy: config.sla,
+    autoAssignOnCreate: config.tickets.autoAssignOnCreate,
+  });
+
   return {
     clock,
     logger,
@@ -56,7 +65,8 @@ export function createContainer({ config, db, clock, logger }: ContainerOptions)
     health: new HealthService(db),
     auth: new AuthService(uow, passwordHasher, tokens, clock),
     users: new UsersService(uow, passwordHasher, clock),
-    tickets: new TicketsService(uow, clock, config.sla, events),
+    tickets,
+    assignment: new AssignmentService(uow, tickets, assigner, events),
   };
 }
 

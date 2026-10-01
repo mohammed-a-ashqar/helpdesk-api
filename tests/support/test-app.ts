@@ -25,6 +25,7 @@ export function testConfig(overrides: { authRateLimitMax?: number } = {}): AppCo
       argon2: { memoryCost: 1024, timeCost: 1 },
     },
     sla: defaultSlaPolicy,
+    tickets: { autoAssignOnCreate: true },
   };
 }
 

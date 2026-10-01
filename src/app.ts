@@ -14,6 +14,7 @@ import { registerOpenApi } from './http/openapi.js';
 import { registerSecurity } from './http/security.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { healthRoutes } from './modules/health/health.routes.js';
+import { assignmentRoutes } from './modules/tickets/assignment/assignment.routes.js';
 import { ticketsRoutes } from './modules/tickets/tickets.routes.js';
 import { usersRoutes } from './modules/users/users.routes.js';
 
@@ -48,6 +49,7 @@ export async function buildApp(config: AppConfig, container: Container): Promise
   await app.register(authRoutes(container.auth, config.auth));
   await app.register(usersRoutes(container.users, container.guards));
   await app.register(ticketsRoutes(container.tickets, container.guards));
+  await app.register(assignmentRoutes(container.assignment, container.guards));
 
   return app;
 }
